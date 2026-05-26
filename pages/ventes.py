@@ -29,6 +29,7 @@ class VentePage:
             fill="both",
             expand=True
         )
+        self.auto_refresh()
 
         # ==================================================
         # TITRE
@@ -275,6 +276,29 @@ class VentePage:
         # ==================================================
 
         self.charger_table()
+
+
+    def auto_refresh(self):
+    
+        try:
+
+            current_count = len(
+                self.tree.get_children()
+            )
+
+            rows = charger_factures()
+
+            if len(rows) != current_count:
+
+                self.charger_donnees()
+
+        except:
+            pass
+
+        self.frame.after(
+            5000,
+            self.auto_refresh
+        )
 
     # ==================================================
     # CHARGER TABLE

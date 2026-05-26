@@ -35,28 +35,28 @@ class App(ctk.CTk):
             text="📊 Dashboard",
             command=self.show_dashboard
         )
-        btn_dashboard.pack(pady=10, padx=20)
+        btn_dashboard.pack(pady=20, padx=30)
 
         btn_vente = ctk.CTkButton(
             self.sidebar,
             text="🧾 Certification Vente",
             command=self.show_ventes
         )
-        btn_vente.pack(pady=10, padx=20)
+        btn_vente.pack(pady=20, padx=30)
 
         btn_avoir = ctk.CTkButton(
             self.sidebar,
             text="↩️ Certification Avoir",
             command=self.show_avoirs
         )
-        btn_avoir.pack(pady=10, padx=20)
+        btn_avoir.pack(pady=20, padx=30)
 
         btn_achat = ctk.CTkButton(
             self.sidebar,
             text="🛒 Certification Achat",
             command=self.show_achats
         )
-        btn_achat.pack(pady=10, padx=20)
+        btn_achat.pack(pady=20, padx=30)
 
         self.show_dashboard()
 

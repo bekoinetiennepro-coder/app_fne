@@ -18,6 +18,7 @@ class AvoirPage:
     def __init__(self, parent):
 
         self.frame = ctk.CTkFrame(parent)
+       
 
         self.frame.pack(
             fill="both",
@@ -27,6 +28,7 @@ class AvoirPage:
         self.setup_ui()
 
         self.charger_factures()
+        self.auto_refresh()
 
     # ==================================================
     # UI
@@ -319,6 +321,29 @@ class AvoirPage:
             background="#f8d7da"
         )
 
+
+    def auto_refresh(self):
+    
+        try:
+
+            current_count = len(
+                self.tree_factures.get_children()
+            )
+
+            rows = charger_factures_certifiees()
+
+            if len(rows) != current_count:
+
+                self.charger_factures()
+
+        except:
+            pass
+
+        self.frame.after(
+            5000,
+            self.auto_refresh
+        )
+
     # ==================================================
     # CHARGER FACTURES
     # ==================================================
@@ -603,10 +628,17 @@ class AvoirPage:
         # API FNE
         # =====================================
 
+        
+        print("INVOICE ID :", fne_invoice_id)
+
+        print("ITEMS :", items)
+
         ok = certifier_avoir(
             fne_invoice_id,
             items
         )
+
+        print("REPONSE API :", ok)
 
         # =====================================
         # SUCCES

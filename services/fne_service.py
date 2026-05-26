@@ -274,15 +274,25 @@ def certifier_avoir(
         "items": items
     }
 
+    print("URL :", url)
+
+    print("PAYLOAD :", payload)
+
     r = requests.post(
         url,
         headers=API_HEADERS,
         json=payload
     )
 
-    return r.status_code in (200, 201)
-    
+    print("STATUS CODE :", r.status_code)
 
+    print("REPONSE API :", r.text)
+
+    if r.status_code in (200, 201):
+
+        return r.json()
+
+    return False
 
 # ==================================================
 # SAUVEGARDE FACTURE FNE
@@ -502,3 +512,165 @@ def total_avoirs_certifies():
     """)
 
     return cursor.fetchone()[0]
+
+
+#=================================================
+# GESTION DES ACHATS
+#=================================================
+
+def charger_achats():
+    
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+        SELECT
+            DO_PIECE,
+            DO_TIERS,
+            DO_Date
+
+        FROM F_DOCENTETE
+
+        WHERE DO_TYPE = 17
+
+        ORDER BY DO_Date DESC
+
+    """)
+
+    rows = cursor.fetchall()
+
+    conn.close()
+
+    return rows
+
+
+def achat_existe(do_piece):
+    
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+        SELECT COUNT(*)
+
+        FROM ACHATS_FNE
+
+        WHERE DO_PIECE = ?
+
+    """, (do_piece,))
+
+    existe = cursor.fetchone()[0] > 0
+
+    conn.close()
+
+    return existe
+
+
+
+def creer_achat_db(
+    do_piece,
+    invoice_id,
+    reference,
+    fournisseur,
+    montant
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+        INSERT INTO ACHATS_FNE (
+
+            DO_PIECE,
+            FNE_INVOICE_ID,
+            FNE_REFERENCE,
+            FOURNISSEUR,
+            MONTANT_TTC
+
+        )
+
+        VALUES (?, ?, ?, ?, ?)
+
+    """, (
+        do_piece,
+        invoice_id,
+        reference,
+        fournisseur,
+        montant
+    ))
+
+    conn.commit()
+
+    conn.close()
+    
+    
+def certifier_achat(payload):
+    
+    url = f"http://54.247.95.108/ws/external/invoices/sign"
+
+    response = requests.post(
+        url,
+        headers=API_HEADERS,
+        json=payload
+    )
+
+   
+
+    print(response.status_code)
+    print(response.text)
+
+    if response.status_code in [200, 201]:
+
+        return response.json()
+
+    return None
+#==================================================
+# STATISTIQUES ACHATS
+#==================================================
+
+def total_achats():
+    conn = get_connection()
+    
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+        SELECT COUNT(*)
+
+        FROM F_DOCENTETE
+
+        WHERE DO_TYPE = 17
+
+    """)
+
+    total = cursor.fetchone()[0]
+
+    conn.close()
+
+    return total
+
+
+def total_achats_certifies():
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+        SELECT COUNT(*)
+
+        FROM ACHATS_FNE
+
+    """)
+
+    total = cursor.fetchone()[0]
+
+    conn.close()
+
+    return total
