@@ -24,6 +24,11 @@ class AvoirPage:
             fill="both",
             expand=True
         )
+        
+        # PAGINATION
+        self.page = 1
+        self.page_size = 30
+        self.factures_data = []
 
         self.setup_ui()
 
@@ -255,6 +260,54 @@ class AvoirPage:
         )
 
         # ==================================================
+        # PAGINATION UI
+        # ==================================================
+
+        pagination_frame = ctk.CTkFrame(self.frame)
+
+        pagination_frame.pack(
+            fill="x",
+            padx=20,
+            pady=5
+        )
+
+        btn_prev = ctk.CTkButton(
+            pagination_frame,
+            text="⬅ Précédent",
+            width=120,
+            command=self.page_precedente
+        )
+
+        btn_prev.pack(
+            side="left",
+            padx=10
+        )
+
+        self.label_page = ctk.CTkLabel(
+            pagination_frame,
+            text="Page 1",
+            font=("Arial", 14, "bold")
+        )
+
+        self.label_page.pack(
+            side="left",
+            padx=20
+        )
+
+        btn_next = ctk.CTkButton(
+            pagination_frame,
+            text="Suivant ➡",
+            width=120,
+            command=self.page_suivante
+        )
+
+        btn_next.pack(
+            side="left",
+            padx=10
+        )
+
+
+        # ==================================================
         # TABLE ARTICLES
         # ==================================================
 
@@ -349,12 +402,28 @@ class AvoirPage:
     # ==================================================
 
     def charger_factures(self):
+    
+        self.factures_data = charger_factures_certifiees()
+
+        self.afficher_page()
+        
+        
+    # ==================================================
+    # AFFICHER PAGE
+    # ==================================================
+
+    def afficher_page(self):
 
         self.tree_factures.delete(
             *self.tree_factures.get_children()
         )
 
-        rows = charger_factures_certifiees()
+        start = (self.page - 1) * self.page_size
+
+        end = start + self.page_size
+
+        #rows = self.factures_data[start:end]
+        rows = self.factures_data[start:end]
 
         for r in rows:
 
@@ -392,12 +461,148 @@ class AvoirPage:
                 tags=(tag,)
             )
 
+        # ==========================================
+        # TOTAL PAGES
+        # ==========================================
+
+        total_pages = max(
+            1,
+            (len(self.factures_data) + self.page_size - 1)
+            // self.page_size
+        )
+
+        self.label_page.configure(
+            text=f"Page {self.page} / {total_pages}"
+        )
+        
+     
+    # ==================================================
+    # PAGE SUIVANTE
+    # ==================================================
+
+    def page_suivante(self):
+
+        total_pages = max(
+            1,
+            (len(self.factures_data) + self.page_size - 1)
+            // self.page_size
+        )
+
+        if self.page < total_pages:
+
+            self.page += 1
+
+            self.afficher_page()
+            
+            
+    # ==================================================
+    # PAGE PRECEDENTE
+    # ==================================================
+
+    def page_precedente(self):
+
+        if self.page > 1:
+
+            self.page -= 1
+
+            self.afficher_page()
+                
     # ==================================================
     # RECHERCHE
     # ==================================================
 
-    def rechercher(self):
+    # def rechercher(self):
 
+    #     date_debut = self.entry_debut.get()
+
+    #     date_fin = self.entry_fin.get()
+
+    #     reference = self.entry_ref.get().lower().strip()
+
+    #     statut_filter = self.combo_statut.get()
+
+    #     self.page = 1
+
+    #     self.factures_data = []
+
+    #     rows = charger_factures_certifiees()
+                
+
+    #     for r in rows:
+
+    #         deja_avoir = avoir_existe(
+    #             r.FNE_INVOICE_ID
+    #         )
+
+    #         if deja_avoir:
+
+    #             statut = "DEJA CERTIFIÉ"
+
+    #             tag = "DONE"
+
+    #             chk = "☑"
+
+    #         else:
+
+    #             statut = "DISPONIBLE"
+
+    #             tag = "OK"
+
+    #             chk = "☐"
+
+    #         # =====================================
+    #         # FILTRE REFERENCE
+    #         # =====================================
+
+    #         if reference:
+
+    #             if (
+    #                 reference not in str(r.DO_PIECE).lower()
+    #                 and
+    #                 reference not in str(r.FNE_REFERENCE).lower()
+    #             ):
+    #                 continue
+
+    #         # =====================================
+    #         # FILTRE STATUT
+    #         # =====================================
+
+    #         if statut_filter != "TOUS":
+
+    #             if statut != statut_filter:
+    #                 continue
+
+    #         # =====================================
+    #         # FILTRE DATE
+    #         # =====================================
+
+    #         date_facture = r.DATE_CERTIFICATION.strftime("%Y-%m-%d")
+
+    #         if date_facture < date_debut:
+    #             continue
+
+    #         if date_facture > date_fin:
+    #             continue
+
+    #         # =====================================
+    #         # INSERTION
+    #         # =====================================
+
+    #         self.tree_factures.insert(
+    #             "",
+    #             "end",
+    #             values=(
+    #                 chk,
+    #                 r.DO_PIECE,
+    #                 r.FNE_INVOICE_ID,
+    #                 r.FNE_REFERENCE,
+    #                 date_facture,
+    #                 statut
+    #             ),
+    #             tags=(tag,)
+    #         )
+    def rechercher(self):
+    
         date_debut = self.entry_debut.get()
 
         date_fin = self.entry_fin.get()
@@ -406,9 +611,9 @@ class AvoirPage:
 
         statut_filter = self.combo_statut.get()
 
-        self.tree_factures.delete(
-            *self.tree_factures.get_children()
-        )
+        self.page = 1
+
+        self.factures_data = []
 
         rows = charger_factures_certifiees()
 
@@ -422,21 +627,11 @@ class AvoirPage:
 
                 statut = "DEJA CERTIFIÉ"
 
-                tag = "DONE"
-
-                chk = "☑"
-
             else:
 
                 statut = "DISPONIBLE"
 
-                tag = "OK"
-
-                chk = "☐"
-
-            # =====================================
             # FILTRE REFERENCE
-            # =====================================
 
             if reference:
 
@@ -447,18 +642,14 @@ class AvoirPage:
                 ):
                     continue
 
-            # =====================================
             # FILTRE STATUT
-            # =====================================
 
             if statut_filter != "TOUS":
 
                 if statut != statut_filter:
                     continue
 
-            # =====================================
             # FILTRE DATE
-            # =====================================
 
             date_facture = r.DATE_CERTIFICATION.strftime("%Y-%m-%d")
 
@@ -468,23 +659,13 @@ class AvoirPage:
             if date_facture > date_fin:
                 continue
 
-            # =====================================
-            # INSERTION
-            # =====================================
+            # AJOUT DATA
 
-            self.tree_factures.insert(
-                "",
-                "end",
-                values=(
-                    chk,
-                    r.DO_PIECE,
-                    r.FNE_INVOICE_ID,
-                    r.FNE_REFERENCE,
-                    date_facture,
-                    statut
-                ),
-                tags=(tag,)
-            )
+            self.factures_data.append(r)
+
+        # AFFICHAGE PAGE
+
+        self.afficher_page()
 
     # ==================================================
     # RESET
@@ -500,7 +681,7 @@ class AvoirPage:
         self.combo_statut.set(
             "TOUS"
         )
-
+        self.page = 1
         self.charger_factures()
 
     # ==================================================

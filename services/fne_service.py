@@ -76,7 +76,7 @@ def charger_factures(
             MAX(CT_Intitule) AS CT_Intitule,
             MAX(CT_Num) AS CT_Num,
             SUM(DL_MontantTTC) AS DL_MontantTTC
-        FROM [ETS DIALLO AMADOU].[dbo].[View_FNE_RLE]
+        FROM [ETS DIALLO AMADOU].[dbo].[View_FNE_RNE]
         WHERE DO_Type = 6
     """
 
@@ -110,6 +110,21 @@ def charger_factures(
 # ==================================================
 # PAYLOAD API
 # ==================================================
+def get_fne_tax(dl_taxe1):
+    
+    taux = float(dl_taxe1 or 0)
+
+    if taux == 18:
+        return "TVA"
+
+    elif taux == 9:
+        return "TVAB"
+
+    elif taux == 0:
+        return "TVAC"
+
+    return "TVA"
+
 
 def construire_payload(DO_Piece):
 
@@ -119,20 +134,34 @@ def construire_payload(DO_Piece):
 
     cursor.execute("""
         SELECT *
-        FROM [ETS DIALLO AMADOU].[dbo].[View_FNE_RLE]
+        FROM [ETS DIALLO AMADOU].[dbo].[View_FNE_RNE]
         WHERE DO_Piece = ?
     """, DO_Piece)
 
     rows = cursor.fetchall()
-
+      # Récupération des noms de colonnes
+    colonnes = [col[0] for col in cursor.description]
     conn.close()
-
+    
     if not rows:
         return None
+    
+    email = ""
+
+    if "CT_Email" in colonnes:
+        email = rows[0].CT_Email or ""
+
+    elif "CT_EMail" in colonnes:
+        email = rows[0].CT_EMail or ""
 
     items = []
 
     for r in rows:
+        taxe = get_fne_tax(r.DL_Taxe1)
+
+        print(
+            f"{r.AR_Ref} | DL_Taxe1={r.DL_Taxe1} | FNE={taxe}"
+        )
 
         items.append({
             "reference": r.AR_Ref,
@@ -141,22 +170,24 @@ def construire_payload(DO_Piece):
             "amount": float(r.DL_PrixUnitaire),
             "discount": 0,
             "measurementUnit": "pcs",
-            "taxes": ["TVA"]
-        })
+            "taxes": [taxe]
+
+       })
 
     return {
         "invoiceType": "sale",
         "paymentMethod": "mobile-money",
         "template": "B2B",
-        "clientNcc": rows[0].CT_Num,
+        "clientNcc": rows[0].CT_Siret,
         "clientCompanyName": rows[0].CT_Intitule,
-        "clientPhone": "0709331306",
-        "clientEmail": "test@gmail.com",
+        "clientPhone": rows[0].CT_Telephone,
+        "clientEmail": email,
         "pointOfSale": "SODISMAF",
         "establishment": "SODISMAF",
         "items": items,
-        "customTaxes": [{"name": "DTD", "amount": 5}],
-        "discount": 10
+        "customTaxes": [],
+        "discount": 0,
+       # "customTaxes": [{"name": "DTD", "amount": 5}],
     }
 
 # ==================================================
@@ -463,7 +494,7 @@ def total_factures():
             MAX(CT_Intitule) AS CT_Intitule,
             MAX(CT_Num) AS CT_Num,
             SUM(DL_MontantTTC) AS DL_MontantTTC
-        FROM [ETS DIALLO AMADOU].[dbo].[View_FNE_RLE]
+        FROM [ETS DIALLO AMADOU].[dbo].[View_FNE_RNE]
         WHERE DO_Type = 6
     """)
 
@@ -527,15 +558,24 @@ def charger_achats():
     cursor.execute("""
 
         SELECT
-            DO_PIECE,
-            DO_TIERS,
-            DO_Date
+            DO_Piece,
+            DO_Tiers,
+            MAX(DO_Ref) AS DO_Ref,
+            MAX(DO_Date) AS DO_Date,
+            MAX(CT_Intitule) AS CT_Intitule,
+            MAX(CT_Num) AS CT_Num,
+            SUM(DL_MontantTTC) AS DL_MontantTTC
 
-        FROM F_DOCENTETE
+        FROM [ETS DIALLO AMADOU].[dbo].[View_FNE_RNE]
 
-        WHERE DO_TYPE = 17
+        WHERE DO_TYPE = 16
 
-        ORDER BY DO_Date DESC
+        GROUP BY
+            DO_Piece,
+            DO_Tiers
+
+        ORDER BY
+            MAX(DO_Date) DESC
 
     """)
 
@@ -544,7 +584,6 @@ def charger_achats():
     conn.close()
 
     return rows
-
 
 def achat_existe(do_piece):
     
@@ -640,11 +679,15 @@ def total_achats():
 
     cursor.execute("""
 
-        SELECT COUNT(*)
-
-        FROM F_DOCENTETE
-
-        WHERE DO_TYPE = 17
+        SELECT COUNT(DISTINCT DO_Piece)
+            DO_Piece,
+            MAX(DO_Ref) AS DO_Ref,
+            MAX(DO_Date) AS DO_Date,
+            MAX(CT_Intitule) AS CT_Intitule,
+            MAX(CT_Num) AS CT_Num,
+            SUM(DL_MontantTTC) AS DL_MontantTTC
+        FROM [ETS DIALLO AMADOU].[dbo].[View_FNE_RNE]
+        WHERE DO_Type = 16
 
     """)
 
@@ -674,3 +717,33 @@ def total_achats_certifies():
     conn.close()
 
     return total
+
+
+def charger_lignes_achat(do_piece):
+    
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+        SELECT
+            AR_Ref,
+            DL_Design,
+            DL_Qte,
+            DL_PrixUnitaire,
+            CT_Siret,
+            CT_Telephone,
+            CT_Email
+
+        FROM [ETS DIALLO AMADOU].[dbo].[View_FNE_RNE]
+
+        WHERE DO_Piece = ?
+
+    """, do_piece)
+
+    rows = cursor.fetchall()
+
+    conn.close()
+
+    return rows

@@ -1,11 +1,3 @@
-INSTALLATIONS : 
-1- telechargement de python puis installé
-
-pip install customtkinter
-pip install pyodbc
-pip install requests
-pip install tkcalendar
-pip install pillow
 
 
 ******CREATION DES TABLES******

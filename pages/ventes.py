@@ -29,7 +29,20 @@ class VentePage:
             fill="both",
             expand=True
         )
-        self.auto_refresh()
+        # ==================================================
+        # CHARGEMENT INITIAL
+        # ==================================================
+        # ==================================================
+        # PAGINATION
+        # ==================================================
+
+        self.page = 1
+
+        self.page_size = 50
+
+        self.factures_data = []
+        
+
 
         # ==================================================
         # TITRE
@@ -222,6 +235,55 @@ class VentePage:
             fill="both",
             expand=True
         )
+        
+        
+        # ==================================================
+        # PAGINATION UI
+        # ==================================================
+
+        pagination_frame = ctk.CTkFrame(self.frame)
+
+        pagination_frame.pack(
+            fill="x",
+            padx=20,
+            pady=10
+        )
+
+        btn_prev = ctk.CTkButton(
+            pagination_frame,
+            text="⬅ Précédent",
+            width=120,
+            command=self.page_precedente
+        )
+
+        btn_prev.pack(
+            side="left",
+            padx=10
+        )
+
+        self.label_page = ctk.CTkLabel(
+            pagination_frame,
+            text="Page 1",
+            font=("Arial", 14, "bold")
+        )
+
+        self.label_page.pack(
+            side="left",
+            padx=20
+        )
+
+        btn_next = ctk.CTkButton(
+            pagination_frame,
+            text="Suivant ➡",
+            width=120,
+            command=self.page_suivante
+        )
+
+        btn_next.pack(
+            side="left",
+            padx=10
+        )
+                
 
         # ==================================================
         # CONFIGURATION COLONNES
@@ -276,10 +338,14 @@ class VentePage:
         # ==================================================
 
         self.charger_table()
+        self.auto_refresh()
 
+    # ==================================================
+# AUTO REFRESH
+# ==================================================
 
     def auto_refresh(self):
-    
+
         try:
 
             current_count = len(
@@ -290,17 +356,17 @@ class VentePage:
 
             if len(rows) != current_count:
 
-                self.charger_donnees()
+                self.charger_table()
 
-        except:
-            pass
+        except Exception as e:
+
+            print("ERREUR AUTO REFRESH :", e)
 
         self.frame.after(
             5000,
             self.auto_refresh
         )
-
-    # ==================================================
+   # ==================================================
     # CHARGER TABLE
     # ==================================================
 
@@ -309,19 +375,38 @@ class VentePage:
             date_debut=None,
             date_fin=None,
             do_piece=None
-    ):
+         ):
 
-        self.tree.delete(
-            *self.tree.get_children()
-        )
+        # ==========================================
+        # CHARGEMENT GLOBAL
+        # ==========================================
 
-        factures = charger_factures(
+        self.factures_data = charger_factures(
             date_debut,
             date_fin,
             do_piece
         )
 
-        for f in factures:
+        self.afficher_page()
+
+    
+    # ==================================================
+    # AFFICHER PAGE
+    # ==================================================
+
+    def afficher_page(self):
+
+        self.tree.delete(
+            *self.tree.get_children()
+        )
+
+        start = (self.page - 1) * self.page_size
+
+        end = start + self.page_size
+
+        rows = self.factures_data[start:end]
+
+        for f in rows:
 
             est_certifie = facture_est_certifiee(
                 f.DO_Piece
@@ -355,6 +440,53 @@ class VentePage:
                 tags=(tag,)
             )
 
+        # ==========================================
+        # LABEL PAGE
+        # ==========================================
+
+        total_pages = max(
+            1,
+            (len(self.factures_data) + self.page_size - 1)
+            // self.page_size
+        )
+
+        self.label_page.configure(
+            text=f"Page {self.page} / {total_pages}"
+        )
+    
+    
+    # ==================================================
+    # PAGE SUIVANTE
+    # ==================================================
+
+    def page_suivante(self):
+
+        total_pages = max(
+            1,
+            (len(self.factures_data) + self.page_size - 1)
+            // self.page_size
+        )
+
+        if self.page < total_pages:
+
+            self.page += 1
+
+            self.afficher_page()
+            
+            
+    # ==================================================
+    # PAGE PRECEDENTE
+    # ==================================================
+
+    def page_precedente(self):
+
+        if self.page > 1:
+
+            self.page -= 1
+
+            self.afficher_page()   
+            
+                 
     # ==================================================
     # CHECKBOX
     # ==================================================
@@ -403,6 +535,7 @@ class VentePage:
         d2 = self.entry_fin.get().strip()
 
         ref = self.entry_ref.get().strip()
+        self.page = 1
 
         self.charger_table(
             d1 or None,
@@ -428,7 +561,7 @@ class VentePage:
             0,
             "end"
         )
-
+        self.page = 1
         self.charger_table()
 
     # ==================================================

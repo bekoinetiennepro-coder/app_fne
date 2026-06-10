@@ -12,9 +12,9 @@ from services.fne_service import (
     charger_achats,
     achat_existe,
     certifier_achat,
-    creer_achat_db
+    creer_achat_db,
+    charger_lignes_achat
 )
-
 
 class AchatPage:
 
@@ -26,6 +26,10 @@ class AchatPage:
             fill="both",
             expand=True
         )
+         # PAGINATION
+        self.page = 1
+        self.page_size = 20
+        self.total_pages = 1
 
         self.setup_ui()
 
@@ -233,6 +237,7 @@ class AchatPage:
             "CHK",
             "FACTURE",
             "FOURNISSEUR",
+            "MONTANT",
             "DATE",
             "STATUT"
         )
@@ -261,6 +266,56 @@ class AchatPage:
             fill="both",
             expand=True
         )
+        
+        # =================================================
+        # PAGINATION UI
+        # =================================================
+
+        pagination_frame = ctk.CTkFrame(self.frame)
+
+        pagination_frame.pack(
+            fill="x",
+            padx=20,
+            pady=10
+        )
+
+        btn_prev = ctk.CTkButton(
+            pagination_frame,
+            text="⬅ Précédent",
+            width=120,
+            command=self.page_precedente
+        )
+
+        btn_prev.pack(
+            side="left",
+            padx=10
+        )
+
+        self.lbl_page = ctk.CTkLabel(
+            pagination_frame,
+            text="Page 1 / 1",
+            font=("Arial", 14, "bold")
+        )
+
+        self.lbl_page.pack(
+            side="left",
+            padx=20
+        )
+
+        btn_next = ctk.CTkButton(
+            pagination_frame,
+            text="➡ Suivant",
+            width=120,
+            command=self.page_suivante
+        )
+
+        btn_next.pack(
+            side="left",
+            padx=10
+        )
+                
+                
+        
         self.tree.bind(
             "<Button-1>",
             self.toggle_checkbox
@@ -327,7 +382,7 @@ class AchatPage:
         )
 
         # bloque si déjà certifié
-        if values[4] == "CERTIFIÉ":
+        if values[5] == "CERTIFIÉ":
 
             messagebox.showwarning(
                 "Attention",
@@ -344,49 +399,111 @@ class AchatPage:
             values=values
         )
 
-
-
     def charger_donnees(self):
-
+    
         self.tree.delete(
             *self.tree.get_children()
         )
 
         rows = charger_achats()
 
-        for r in rows:
+        # =================================================
+        # TOTAL PAGES
+        # =================================================
 
-            if achat_existe(r.DO_PIECE):
+        total = len(rows)
+
+        self.total_pages = max(
+            1,
+            (total + self.page_size - 1) // self.page_size
+        )
+
+        # =================================================
+        # LIMITES
+        # =================================================
+
+        start = (self.page - 1) * self.page_size
+
+        end = start + self.page_size
+
+        rows_page = rows[start:end]
+
+        # =================================================
+        # LABEL PAGE
+        # =================================================
+
+        self.lbl_page.configure(
+            text=f"Page {self.page} / {self.total_pages}"
+        )
+
+        # =================================================
+        # INSERTION
+        # =================================================
+
+        for r in rows_page:
+
+            if achat_existe(r[0]):
 
                 statut = "CERTIFIÉ"
-
                 tag = "DONE"
 
             else:
 
                 statut = "DISPONIBLE"
-
                 tag = "OK"
 
             self.tree.insert(
                 "",
                 "end",
-                values=(
-                     "☐",
-                    r.DO_PIECE,
-                    r.DO_TIERS,
-                    r.DO_Date.strftime("%Y-%m-%d"),
-                   
+                # values=(
+                #     "☐",
+                #     r[0],
+                #     r[1],
+                #     r[3].strftime("%Y-%m-%d"),
+                #     statut
+                # ),
+                 values=(
+                    "☐",
+                    r[0],  # FACTURE
+                    r[1],  # FOURNISSEUR
+                    f"{float(r[6]):,.0f} FCFA",  # MONTANT
+                    r[3].strftime("%Y-%m-%d"),   # DATE
                     statut
                 ),
                 tags=(tag,)
             )
+    # =====================================================
+    # PAGE SUIVANTE
+    # =====================================================
 
+    def page_suivante(self):
+
+        if self.page < self.total_pages:
+
+            self.page += 1
+
+            self.charger_donnees()
+
+    # =====================================================
+    # PAGE PRECEDENTE
+    # =====================================================
+
+    def page_precedente(self):
+
+        if self.page > 1:
+
+            self.page -= 1
+
+            self.charger_donnees()     
+
+    
     # =====================================================
     # RECHERCHE
     # =====================================================
 
     def rechercher(self):
+        
+        self.page = 1
 
         date_debut = self.entry_debut.get()
 
@@ -404,7 +521,7 @@ class AchatPage:
 
         for r in rows:
 
-            if achat_existe(r.DO_PIECE):
+            if achat_existe(r[0]):
 
                 statut = "CERTIFIÉ"
 
@@ -423,9 +540,9 @@ class AchatPage:
             if ref:
 
                 if (
-                    ref not in str(r.DO_PIECE).lower()
+                    ref not in str(r[0]).lower()
                     and
-                    ref not in str(r.DO_TIERS).lower()
+                    ref not in str(r[1]).lower()
                 ):
                     continue
 
@@ -442,7 +559,7 @@ class AchatPage:
             # FILTRE DATE
             # =========================================
 
-            date_doc = r.DO_Date.strftime("%Y-%m-%d")
+            date_doc = r[3].strftime("%Y-%m-%d")
 
             if date_doc < date_debut:
                 continue
@@ -454,15 +571,28 @@ class AchatPage:
             # INSERT
             # =========================================
 
+            # self.tree.insert(
+            #     "",
+            #     "end",
+            #     values=(
+            #         "☐",
+            #         r.DO_PIECE,
+            #         r.DO_TIERS,
+            #         date_doc,
+                    
+            #         statut
+            #     ),
+            #     tags=(tag,)
+            # )
             self.tree.insert(
                 "",
                 "end",
                 values=(
                     "☐",
-                    r.DO_PIECE,
-                    r.DO_TIERS,
-                    date_doc,
-                    
+                    r[0],  # DO_Piece
+                    r[1],  # DO_Tiers
+                    f"{float(r[6]):,.0f} FCFA", # DL_MontantTTC
+                    r[3].strftime("%Y-%m-%d"),  # DO_Date
                     statut
                 ),
                 tags=(tag,)
@@ -473,6 +603,8 @@ class AchatPage:
     # =====================================================
 
     def reinitialiser(self):
+        
+        self.page = 1
 
         self.entry_ref.delete(
             0,
@@ -502,6 +634,10 @@ class AchatPage:
 
             return
 
+        # ==========================================
+        # RECUPERATION LIGNE
+        # ==========================================
+
         values = self.tree.item(
             selected[0],
             "values"
@@ -512,7 +648,7 @@ class AchatPage:
         fournisseur = values[2]
 
         # ==========================================
-        # DOUBLE CERTIFICATION
+        # VERIFICATION DOUBLE CERTIFICATION
         # ==========================================
 
         if achat_existe(do_piece):
@@ -525,7 +661,62 @@ class AchatPage:
             return
 
         # ==========================================
-        # PAYLOAD OFFICIEL FNE ACHAT
+        # CHARGER ARTICLES ACHAT
+        # ==========================================
+
+        lignes = charger_lignes_achat(
+            do_piece
+        )
+        client_ncc = lignes[0].CT_Siret or ""
+        client_phone = lignes[0].CT_Telephone or ""
+        client_email = lignes[0].CT_Email or ""
+        print("COLONNES DISPONIBLES :")
+        print(lignes[0])
+        # ==========================================
+        # CONSTRUCTION ITEMS
+        # ==========================================
+
+        items = []
+
+        for r in lignes:
+
+            prix = float(r.DL_PrixUnitaire or 0)
+
+            if prix <= 0:
+                continue
+
+            items.append({
+
+                "reference": r.AR_Ref or "",
+
+                "description": r.DL_Design or "",
+
+                "quantity": float(r.DL_Qte or 0),
+
+                "amount": prix,
+
+                "discount": 0,
+
+                "measurementUnit": "pcs",
+                
+
+            })
+
+        # ==========================================
+        # VERIFICATION ITEMS
+        # ==========================================
+
+        if not items:
+
+            messagebox.showerror(
+                "Erreur",
+                "Aucun article trouvé."
+            )
+
+            return
+
+        # ==========================================
+        # PAYLOAD FNE
         # ==========================================
 
         payload = {
@@ -535,14 +726,14 @@ class AchatPage:
             "paymentMethod": "mobile-money",
 
             "template": "B2B",
-            
-            "clientNcc": "",
+
+            "clientNcc": client_ncc,
 
             "clientCompanyName": fournisseur,
 
-            "clientPhone": "0700000000",
+            "clientPhone": client_phone,
 
-            "clientEmail": "",
+            "clientEmail": client_email,
 
             "clientSellerName": fournisseur,
 
@@ -554,38 +745,23 @@ class AchatPage:
 
             "footer": "Merci pour votre confiance",
 
-           
-            "items": [
-
-                {
-                    "reference": do_piece,
-
-                    "description": "ACHAT FOURNISSEUR",
-
-                    "quantity": 1,
-
-                    "amount": 1,
-
-                    "discount": 0,
-
-                    "measurementUnit": "pcs"
-                }
-
-            ],
+            "items": items,
 
             "discount": 0
         }
 
+        print("PAYLOAD FNE :")
         print(payload)
 
         # ==========================================
-        # API
+        # API FNE
         # ==========================================
 
         response = certifier_achat(
             payload
         )
 
+        print("REPONSE API :")
         print(response)
 
         # ==========================================
@@ -595,11 +771,16 @@ class AchatPage:
         if response:
 
             creer_achat_db(
+
                 do_piece,
+
                 response["invoice"]["id"],
+
                 response["reference"],
+
                 fournisseur,
-                1
+
+                len(items)
             )
 
             messagebox.showinfo(
@@ -614,33 +795,4 @@ class AchatPage:
             messagebox.showerror(
                 "Erreur",
                 "Erreur certification achat."
-            )
-
-        # =============================================
-        # SUCCES
-        # =============================================
-
-        if response:
-
-            creer_achat_db(
-                do_piece,
-                response["invoice"]["id"],
-                response["reference"],
-                fournisseur,
-                1
-            )
-
-            messagebox.showinfo(
-                "Succès",
-                "Achat certifié avec succès."
-            )
-
-            self.charger_donnees()
-
-        else:
-
-            messagebox.showerror(
-                "Erreur",
-                "Erreur certification achat."
-            )
-            
+            )        
